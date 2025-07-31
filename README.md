@@ -1,4 +1,4 @@
-🌿 Vegetable Pricing & Replenishment Optimization Model
+# 🌿 Vegetable Pricing & Replenishment Optimization Model
 
 本项目旨在基于历史销售数据，建立蔬菜类商品的定价与补货优化模型，实现商超利润最大化。该项目结合统计分析、时间序列建模与智能优化方法，逐步解决了以下四个核心问题：
 
