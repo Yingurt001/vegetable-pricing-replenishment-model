@@ -1,170 +1,159 @@
 # 🌿 Vegetable Pricing & Replenishment Optimization Model
 
-本项目致力于构建一套以数据驱动的【蔬菜定价与补货优化系统】，针对超市多品类蔬菜商品的销售数据，结合**统计分析、时间序列预测与智能优化算法**，实现精准预测与利润最大化。
+This project aims to build a **data-driven vegetable pricing and replenishment optimization system**. It leverages **statistical analysis, time series forecasting, and intelligent optimization algorithms** to predict sales and maximize profits for multiple categories of vegetable products sold in supermarkets.
 
 ---
 
-## 🎯 项目背景与研究目标
+## 🎯 Project Background & Objectives
 
-在生鲜商超中，一般蔬菜类商品的保鲜期都比较短，且品相随销售时间的增加而变差，大部分品种如当日未售出，隔日就无法再售。因此，商超通常会根据各商品的历史销售和需求情况每天进行补货。
+In fresh food retail, vegetables generally have a short shelf life, and their appearance deteriorates over time. Most products cannot be sold the next day if unsold on the day of arrival. Therefore, supermarkets typically replenish vegetables daily based on historical sales and demand patterns.
 
-由于商超销售的蔬菜品种众多、产地不尽相同，而蔬菜的进货交易时间通常在凌晨 3:00-4:00，为此商家须在不确切知道具体单品和进货价格的情况下，做出当日各蔬菜品类的补货决策。蔬菜的定价一般采用"成本加成定价"方法，商超对运损和品相变差的商品通常进行打折销售。
+Given the wide variety of vegetables from different origins and the fact that wholesale transactions occur in the early hours (around 3:00–4:00 AM), supermarkets must make replenishment decisions without precise knowledge of specific products and purchase prices. Pricing is usually based on a **cost-plus pricing** approach, with discounts applied to damaged or unsightly goods.
 
-可靠的市场需求分析，对补货决策和定价决策尤为重要。从需求侧来看，蔬菜类商品的销售量与时间往往存在一定的关联关系；从供给侧来看，蔬菜的供应品种在 4 月至 10月较为丰富，商超销售空间的限制使得合理的销售组合变得极为重要。
+Reliable market demand analysis is crucial for both replenishment and pricing decisions.  
+From the demand side, vegetable sales often exhibit a relationship with time.  
+From the supply side, vegetable variety is abundant between April and October, and limited shelf space makes it essential to optimize the sales mix.
 
-本项目基于三个历史销售数据文件，设计并实现一整套“预测 + 优化”流程，依次解决以下关键问题：
+Based on three historical sales datasets, this project designs and implements a complete **forecast + optimization** workflow to address the following key problems:
 
-- 🥬 **问题一**：蔬菜类商品不同品类或不同单品之间可能存在一定的关联关系，分析蔬菜各品类及单品销售量的分布规律及相互关系
-- 🔮 **问题二**：考虑商超以品类为单位做补货计划，请分析各蔬菜品类的销售总量与成本加成定价的关系，并给出各蔬菜品类未来一周(2023 年 7 月 1-7 日)的日补货总量和定价策略，使得商超收益最大
-- 🧠 **问题三**：因蔬菜类商品的销售空间有限，商超希望进一步制定单品的补货计划，要求可售单品总数控制在 27-33 个，且各单品订购量满足最小陈列量 2.5 千克的要求。根据 2023年 6 月 24-30 日的可售品种，给出 7 月 1 日的单品补货量和定价策略，在尽量满足市场对各品类蔬菜商品需求的前提下，使得商超收益最大。
-
-
----
-
-## 📦 数据集说明
-
-我们使用了四个真实交易维度的 Excel 数据文件（“附件1~4”）：
-
-| 数据来源 | 文件名 | 核心字段 | 数据量级 |
-|----------|--------|----------|----------|
-| 商品属性数据 | 附件1.xlsx | 单品编码、单品名称、分类编码、分类名称  | 250个单品 |
-| 销售定价记录 | 附件2.xlsx | 销售日期、扫码销售时间、单品编码、销量（千克）、销售单价（元/千克）、销售类型，是否打折 | 多日期 × 多商品 |
-| 批发价格记录 | 附件3.xlsx | 销售日期、单品编码、批发价格 | 超过 1 年批发记录 |
-| 损耗率 | 附件3.xlsx | 单品编码、单品名称、损耗率 | 250个单品 |
-
-我们通过统一主键（单品编码 + 销售日期）进行三表合并，形成了包含价格、销量、分类属性的完整交易数据表，在本地存储为merged_final文件。
-
-## 🧾 数据格式示例
-
-合并后的 `merged_final` 数据表整合了商品属性、销售记录、批发价格与损耗率，形成可用于后续分析与建模的核心表格。
-
-以下为该数据表的前几行示意（以“泡泡椒（精品）”为例）：
-
-| 销售日期 | 扫码销售时间 | 单品编码 | 销量(千克) | 销售单价(元/千克) | 销售类型 | 是否打折 | 单品名称 | 分类名称 | 批发价格(元/千克) | 销售总量 |
-|-----------|----------------|-----------|--------------|--------------------|-----------|------------|------------|-----------|----------------------|------------|
-| 2020-07-01 | 09:15:07.924   | 102900005117056 | 0.396 | 7.6 | 销售 | 否 | 泡泡椒（精品） | 辣椒类 | 4.32 | 3.0096 |
-| 2020-07-01 | 09:17:33.905   | 102900005117056 | 0.409 | 7.6 | 销售 | 否 | 泡泡椒（精品） | 辣椒类 | 4.32 | 3.1084 |
-| 2020-07-01 | 09:21:55.556   | 102900005117056 | 0.277 | 7.6 | 销售 | 否 | 泡泡椒（精品） | 辣椒类 | 4.32 | 2.1052 |
-| 2020-07-01 | 09:22:01.274   | 102900005117056 | 0.132 | 7.6 | 销售 | 否 | 泡泡椒（精品） | 辣椒类 | 4.32 | 1.0032 |
-| 2020-07-01 | 09:41:09.342   | 102900005117056 | 0.198 | 7.6 | 销售 | 否 | 泡泡椒（精品） | 辣椒类 | 4.32 | 1.5048 |
-
-> 注：销售总量 = 销量 × 销售单价（单位为元）
-
-
-
-
+- 🥬 **Problem 1**: Identify and analyze distribution patterns and interrelationships between sales volumes across vegetable categories and individual products.
+- 🔮 **Problem 2**: Considering category-level replenishment planning, analyze the relationship between total sales volume and cost-plus pricing for each category, and determine daily replenishment volumes and pricing strategies for the upcoming week (July 1–7, 2023) to maximize supermarket revenue.
+- 🧠 **Problem 3**: With limited shelf space, plan individual product replenishment while ensuring the total number of available SKUs is between 27–33, and each product meets a minimum display quantity of 2.5 kg. Based on available products from June 24–30, 2023, provide replenishment quantities and pricing strategies for July 1 that maximize revenue while meeting category-level demand.
 
 ---
 
-## 🧰 项目环境
+## 📦 Dataset Description
+
+We use four real-world transactional Excel datasets (“Attachment 1–4”):
+
+| Data Source | Filename      | Key Fields | Scale |
+|-------------|--------------|-----------|-------|
+| Product Attributes | Attachment1.xlsx | SKU code, product name, category code, category name | 250 SKUs |
+| Sales & Pricing | Attachment2.xlsx | Date, sales timestamp, SKU code, sales volume (kg), sales price (CNY/kg), sales type, discount flag | Multi-date × multi-product |
+| Wholesale Prices | Attachment3.xlsx | Date, SKU code, wholesale price | Over 1 year of records |
+| Loss Rate | Attachment4.xlsx | SKU code, product name, loss rate | 250 SKUs |
+
+All datasets are merged on the primary key `(SKU code + date)` to form a complete transaction table with price, sales, and category attributes, stored locally as `merged_final`.
+
+---
+
+## 🧾 Sample Data Format
+
+The merged `merged_final` table integrates product attributes, sales records, wholesale prices, and loss rates, providing a comprehensive dataset for analysis and modeling.
+
+Example (for product “泡泡椒（精品）” / Premium Chili Pepper):
+
+| Date       | Sales Time     | SKU Code         | Volume (kg) | Price (CNY/kg) | Type   | Discount | Product Name  | Category | Wholesale Price (CNY/kg) | Revenue (CNY) |
+|------------|---------------|-----------------|-------------|----------------|--------|----------|---------------|----------|--------------------------|---------------|
+| 2020-07-01 | 09:15:07.924  | 102900005117056  | 0.396       | 7.6            | Sales  | No       | Premium Chili | Chili    | 4.32                     | 3.0096        |
+| 2020-07-01 | 09:17:33.905  | 102900005117056  | 0.409       | 7.6            | Sales  | No       | Premium Chili | Chili    | 4.32                     | 3.1084        |
+| ...        | ...           | ...              | ...         | ...            | ...    | ...      | ...           | ...      | ...                      | ...           |
+
+> Note: Revenue = Volume × Price (CNY).
+
+---
+
+## 🧰 Environment Setup
 
 - Python >= 3.10
-- 推荐使用 Conda 或 venv 虚拟环境管理
-- 所需依赖请见 `requirements.txt`，核心库包括：
+- Recommended: Conda or venv for environment management
+- Dependencies listed in `requirements.txt`, including:
   - `pandas`, `numpy`, `matplotlib`, `seaborn`
   - `scikit-learn`, `statsmodels`, `prophet`
-  - `cvxpy`, `deap`（用于优化）
+  - `cvxpy`, `deap` (for optimization tasks)
 
 ---
 
-## 📈 数据处理与建模方法
+## 📈 Data Processing & Modeling
 
-### 🧹 数据清洗与预处理
+### 🧹 Data Cleaning & Preprocessing
+- Sales normalization, forward-fill for missing values, outlier removal
+- Category hierarchy mapping to individual SKUs
+- Sliding window construction for time series features
 
-- 销量归一化、缺失数据前向填充、异常值处理
-- 分类层级构建与单品映射
-- 滑窗构建时间序列结构
+### 🔍 Exploratory Data Analysis
+- Pearson correlation heatmaps for price vs. sales
+- Top-N category & product sales trends
+- Stacked bar plots for inter-category sales comparisons
 
-### 🔍 探索性分析
+### ⏳ Time Series Forecasting
+- **ARIMA**: Short-term sales forecasting
+- **Prophet**: Long-term trends with holiday and weekly effects
 
-- 銷量与价格的相关性热力图（皮尔逊）
-- Top-N 分类与单品销售趋势可视化
-- 类别间销售量堆叠图、增长趋势折线图
+### 🧮 Optimization Modeling
 
-### ⏳ 时间序列建模
-
-- **ARIMA**：用于短期销量预测
-- **Prophet**：考虑节假日与周效应的长期销量趋势预测
-
-### 🧮 优化建模方法
-
-| 问题目标 | 使用方法 |
-|----------|----------|
-| 分类级别定价 | 模拟退火优化加成率 |
-| 单品组合选择 | 遗传算法优化利润占比 |
-| 精细补货建议 | 混合整数规划模型（MIQP） |
-| 成本利润约束建模 | 使用 `cvxpy` 表达约束与目标函数 |
+| Goal | Method |
+|------|--------|
+| Category-level pricing | Simulated Annealing for markup rates |
+| Product selection | Genetic Algorithm for profit share optimization |
+| Fine-grained replenishment | Mixed Integer Quadratic Programming (MIQP) |
+| Cost-profit constraints | Expressed using `cvxpy` |
 
 ---
 
-## 📊 模型关键结果展示
+## 📊 Key Results
 
-### 🔮 Prophet 预测示例
-
+### 🔮 Prophet Forecast Example
 <img src="figures/prophet_forecast_example.png" width="600"/>
 
-- 蓝线为真实销量，黑线为模型预测；
-- 可观察到明显的节假日跳跃及周波动。
+- Blue line: actual sales  
+- Black line: model forecast  
+- Clear holiday spikes and weekly cycles observed.
 
-### 🧠 优化策略示例表格
+### 🧠 Sample Optimization Output
 
-| 单品名称 | 成本价 | 建议售价 | 预测销量 | 利润贡献 |
-|----------|--------|----------|----------|-----------|
-| 西兰花   | 4.2 元 | 6.8 元   | 98 kg    | 254.8 元   |
-| 胡萝卜   | 2.3 元 | 3.6 元   | 120 kg   | 156 元     |
+| Product   | Cost Price | Suggested Price | Predicted Sales | Profit Contribution |
+|-----------|-----------|-----------------|-----------------|---------------------|
+| Broccoli  | 4.2 CNY   | 6.8 CNY         | 98 kg           | 254.8 CNY           |
+| Carrot    | 2.3 CNY   | 3.6 CNY         | 120 kg          | 156 CNY             |
 
-> 通过模拟退火模型迭代优化，结合销量预测，实现最大化收益策略。
-
----
-
-## 🗂️ 项目结构说明
-
-| 目录 / 文件       | 描述 |
-|------------------|------|
-| `notebooks/`     | 所有分析与建模的 Jupyter Notebook 示例 |
-| `src/`           | 核心函数封装模块（如建模、优化函数） |
-| `data/`          | 原始数据与预处理后的数据集 |
-| `figures/`       | 自动生成的可视化图像 |
-| `reports/`       | 模型总结报告、可交付文档 |
-| `requirements.txt` | 项目依赖包列表 |
+> Simulated annealing optimizes markup combined with demand forecasts for maximum profit.
 
 ---
 
-## 🧱 模块与方法对照表
+## 🗂️ Project Structure
 
-| 模块文件 | 功能 | 关键技术 |
-|----------|------|-----------|
-| `data_cleaning.py` | 数据清洗与合并 | 缺失值填充、异常剔除 |
-| `eda_analysis.py`  | EDA 可视化分析 | 热力图、堆叠柱状图 |
-| `arima_model.py`   | ARIMA 模型预测 | statsmodels |
-| `prophet_model.py` | 需求预测建模 | fbprophet |
-| `optimizer.py`     | 价格策略优化 | 模拟退火、遗传算法 |
-| `pricing_miqp.py`  | 补货规划优化 | 混合整数二次规划 |
-| `plotting.py`      | 图像绘制模块 | matplotlib / seaborn |
-
----
-
-## 🧬 项目优势与创新点
-
-- ✅ **多源数据融合建模**：融合价格、销量、分类信息，实现完整建模闭环；
-- ✅ **可解释性强的预测模型**：ARIMA + Prophet 双模结合，提高预测稳健性；
-- ✅ **模块化优化策略输出**：单品 / 分类两层优化，灵活应对多种场景；
-- ✅ **可视化支持丰富**：销售趋势、类别相关性、补货模拟等全链路图示；
-- ✅ **易于迁移与迭代**：明确的目录结构与函数封装，方便未来部署与优化。
+| Directory / File    | Description |
+|---------------------|-------------|
+| `notebooks/`        | Jupyter Notebooks for analysis & modeling |
+| `src/`              | Core function modules (modeling, optimization) |
+| `data/`             | Raw and preprocessed datasets |
+| `figures/`          | Auto-generated visualizations |
+| `reports/`          | Model reports and deliverables |
+| `requirements.txt`  | Python dependencies |
 
 ---
 
-## 🔭 展望与未来工作
+## 🧱 Module Overview
 
-- 接入实时销售数据流，实现动态预测与智能补货；
-- 加入天气、节假日等外部因子增强预测准确性；
-- 引入库存约束与损耗机制，提升模型实用性；
-- 构建可交互式仪表盘，面向运营人员部署。
+| Module File         | Function | Key Techniques |
+|---------------------|----------|----------------|
+| `data_cleaning.py`  | Data cleaning & merging | Missing value imputation, outlier removal |
+| `eda_analysis.py`   | Exploratory analysis    | Heatmaps, stacked bar charts |
+| `arima_model.py`    | ARIMA forecasting       | statsmodels |
+| `prophet_model.py`  | Demand forecasting      | fbprophet |
+| `optimizer.py`      | Pricing optimization    | Simulated Annealing, Genetic Algorithm |
+| `pricing_miqp.py`   | Replenishment planning  | MIQP |
+| `plotting.py`       | Visualization utilities | matplotlib / seaborn |
+
+---
+
+## 🧬 Advantages & Innovations
+- ✅ **Multi-source data fusion**: Integrates price, sales, and category info into a unified modeling pipeline.
+- ✅ **Interpretable forecasts**: ARIMA + Prophet combination improves robustness.
+- ✅ **Modular optimization output**: Category & SKU-level strategies for flexible application.
+- ✅ **Rich visualization support**: End-to-end visual insights from trends to optimization.
+- ✅ **Portable & scalable**: Clear structure for easy deployment and future iteration.
+
+---
+
+## 🔭 Future Work
+- Integrate real-time sales streams for dynamic forecasting and replenishment.
+- Incorporate weather and holiday data to improve prediction accuracy.
+- Add inventory and loss constraints for higher practicality.
+- Develop an interactive dashboard for operational deployment.
 
 ---
 
 ## 📜 License
-
-本项目遵循 MIT License，欢迎学术交流与非商业使用。
-
----
+This project is licensed under the MIT License. Academic exchange and non-commercial use are welcome.
